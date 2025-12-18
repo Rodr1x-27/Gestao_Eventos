@@ -6,11 +6,11 @@ function obterDadosDoUtilizador(perfil, email) {
         return {
             totalArrecadado: 14720.50,
             inscricoesTotais: 412,
-            eventosAtivos: 7, 
-            notificacoes: 2 
+            eventosAtivos: 7,
+            notificacoes: 2
         };
-    } 
-    
+    }
+
     else if (perfil === 'participante') {
         return {
             proximoEvento: {
@@ -28,17 +28,16 @@ function obterDadosDoUtilizador(perfil, email) {
             notificacoes: 5
         };
     }
-    return {}; 
+    return {};
 }
 
 
-// NOVO: Função para encapsular toda a lógica de renderização original (Passos 3 a 9)
+// NOVO: Função para encapsular toda a lógica de renderização original
 function carregarConteudoDashboard(perfil, emailCompleto) {
-    
-    // Obter o nome base do email (para a saudação dinâmica)
+
     const nomeBase = emailCompleto.split('@')[0];
 
-    //  Pontos de injeção do javascript para o HTML com base no meu id
+    // Pontos de injeção do javascript para o HTML com base no id
     const menuContainer = document.getElementById('menu-principal-dinamico');
     const conteudoContainer = document.getElementById('conteudo-principal-dinamico');
     const nomeUtilizadorEl = document.getElementById('display-nome-utilizador');
@@ -47,30 +46,28 @@ function carregarConteudoDashboard(perfil, emailCompleto) {
     const subtituloHeaderEl = document.getElementById('display-header-subtitulo');
     const logoLink = document.getElementById('logo-link');
 
-
     // VERIFICAÇÃO CRÍTICA: Se o perfil for inválido, paramos.
     if (!perfil || (perfil !== 'organizador' && perfil !== 'participante')) {
-        tituloHeaderEl.textContent = 'ERRO DE PERFIL';
-        subtituloHeaderEl.textContent = 'O tipo de perfil (' + perfil + ') é inválido ou nulo. Verifique o login.';
+        if (tituloHeaderEl) tituloHeaderEl.textContent = 'ERRO DE PERFIL';
+        if (subtituloHeaderEl) subtituloHeaderEl.textContent = 'O tipo de perfil é inválido. Verifique o login.';
         console.error('ERRO CRÍTICO: Perfil do Utilizador não é "organizador" nem "participante".');
-        return; 
+        return;
     }
-    
-    // Definir o link do logo (requisito)
-    logoLink.href = 'dashboard.html';
 
-    // --- 4. OBTER DADOS DA "BASE DE DADOS" ---
+    // Definir o link do logo
+    if (logoLink) logoLink.href = 'dashboard.html';
+
+    // Obter dados simulados
     const dados = obterDadosDoUtilizador(perfil, emailCompleto);
 
-    // --- 5. CONSTRUÇÃO DINÂMICA (O "IF/ELSE") ---
     let menuHTML = '';
     let conteudoHTML = '';
 
     if (perfil === 'organizador') {
-        // CORREÇÃO: Usar nomeBase dinâmico
-        tituloHeaderEl.textContent = `Bem-vindo ${nomeBase}!`;
-        subtituloHeaderEl.textContent = 'Crie os melhores eventos, workshops e conferências do IPCA!';
-        
+
+        if (tituloHeaderEl) tituloHeaderEl.textContent = `Bem-vindo ${nomeBase}!`;
+        if (subtituloHeaderEl) subtituloHeaderEl.textContent = 'Crie os melhores eventos, workshops e conferências do IPCA!';
+
         menuHTML = `
             <a href="dashboard.html" class="menu-item active"><i class="fas fa-home"></i><span>Menu Inicial</span></a>
             <a href="criar_evento.html" class="menu-item"><i class="fas fa-plus-circle"></i><span>Criar Evento</span></a>
@@ -110,15 +107,17 @@ function carregarConteudoDashboard(perfil, emailCompleto) {
             </div>
         `;
 
-
     } else if (perfil === 'participante') {
-        // CORREÇÃO: Usar nomeBase dinâmico
-        tituloHeaderEl.textContent = `Bem-vindo ${nomeBase}!`;
-        subtituloHeaderEl.textContent = 'Participe nos melhores eventos, workshops e conferências do IPCA!';
-        
+
+        if (tituloHeaderEl) tituloHeaderEl.textContent = `Bem-vindo ${nomeBase}!`;
+        if (subtituloHeaderEl) subtituloHeaderEl.textContent = 'Participe nos melhores eventos, workshops e conferências do IPCA!';
+
         menuHTML = `
             <a href="dashboard.html" class="menu-item active"><i class="fas fa-home"></i><span>Menu Inicial</span></a>
+
+            <!-- CORRETO: página da APP -->
             <a href="explorar_eventos.html" class="menu-item"><i class="fas fa-search"></i><span>Explorar Eventos</span></a>
+
             <a href="minhas_inscricoes.html" class="menu-item"><i class="fas fa-ticket-alt"></i><span>As Minhas Inscrições</span></a>
             <a href="eventos_favoritos.html" class="menu-item"><i class="fas fa-star"></i><span>Eventos Favoritos</span></a>
             <a href="dados_pessoais.html" class="menu-item"><i class="fas fa-user-cog"></i><span>Gestão de Perfil</span></a>
@@ -150,28 +149,27 @@ function carregarConteudoDashboard(perfil, emailCompleto) {
             <div class="widget widget-cta">
                 <h3>Descubra a sua próxima experiência</h3>
                 <p class="widget-detalhe">Encontre conferências, workshops e seminários na sua área.</p>
+
+                <!-- CORRETO: página da APP -->
                 <a href="explorar_eventos.html" class="btn btn-primario"><i class="fas fa-search"></i> Explorar Eventos</a>
             </div>
         `;
     }
 
-    // --- 6. INJETAR O CONTEÚDO NO HTML ---
+    // Injetar HTML
     if (menuContainer) menuContainer.innerHTML = menuHTML;
     if (conteudoContainer) conteudoContainer.innerHTML = conteudoHTML;
 
-    // --- 7. INJETAR INFO DO PERFIL (RODAPÉ DA SIDEBAR) ---
-    if (nomeUtilizadorEl && perfil) {
-        nomeUtilizadorEl.textContent = nomeBase;
-        perfilUtilizadorEl.textContent = perfil.charAt(0).toUpperCase() + perfil.slice(1);
-    }
-    
-    // --- 9. LÓGICA DO TOGGLE DA BARRA LATERAL (USA LOCALSTORAGE - MANTIDA) ---
+    // Info do utilizador no rodapé da sidebar
+    if (nomeUtilizadorEl) nomeUtilizadorEl.textContent = nomeBase;
+    if (perfilUtilizadorEl) perfilUtilizadorEl.textContent = perfil.charAt(0).toUpperCase() + perfil.slice(1);
+
+    // Toggle sidebar (mantém localStorage)
     const toggleBtn = document.getElementById('toggle-sidebar');
     const container = document.getElementById('dashboard-container');
-    
+
     if (toggleBtn && container) {
-        // Manter a chave de preferência da sidebar no localStorage
-        const isRecolhida = localStorage.getItem('sidebarRecolhida') === 'true'; 
+        const isRecolhida = localStorage.getItem('sidebarRecolhida') === 'true';
         if (isRecolhida) {
             container.classList.add('sidebar-recolhida');
             toggleBtn.textContent = '→';
@@ -182,8 +180,7 @@ function carregarConteudoDashboard(perfil, emailCompleto) {
         toggleBtn.addEventListener('click', () => {
             container.classList.toggle('sidebar-recolhida');
             const novoEstado = container.classList.contains('sidebar-recolhida');
-            // Manter a chave de preferência da sidebar no localStorage
-            localStorage.setItem('sidebarRecolhida', novoEstado); 
+            localStorage.setItem('sidebarRecolhida', novoEstado);
             toggleBtn.textContent = novoEstado ? '→' : '←';
         });
     }
@@ -191,62 +188,50 @@ function carregarConteudoDashboard(perfil, emailCompleto) {
 
 
 // =========================================================
-// SCRIPT PRINCIPAL DO DASHBOARD (MIGRADO PARA FIREBASE)
+// SCRIPT PRINCIPAL DO DASHBOARD (FIREBASE)
 // =========================================================
 document.addEventListener('DOMContentLoaded', () => {
 
-    // NOVO: Listener de estado de autenticação do Firebase
-  
-    // --- 8. LÓGICA DE LOGOUT (AGORA FIREBASE) ---
-    const btnLogout = document.getElementById('btn-logout'); 
-    
-    let firebaseCarregado = false;
+    const btnLogout = document.getElementById('btn-logout');
 
-auth.onAuthStateChanged(async (user) => {
+    auth.onAuthStateChanged(async (user) => {
+        try {
+            if (!user) {
+                window.location.href = "./login.html";
+                return;
+            }
 
-    try {
-        const uid = user.uid;
-        const doc = await db.collection("utilizadores").doc(uid).get();
+            const uid = user.uid;
+            const doc = await db.collection("utilizadores").doc(uid).get();
 
-        if (!doc.exists) {
-            console.error("Perfil não encontrado no Firestore.");
-            await auth.signOut();
-            window.location.href = "./login.html";
-            return;
-        }
+            if (!doc.exists) {
+                console.error("Perfil não encontrado no Firestore.");
+                await auth.signOut();
+                window.location.href = "./login.html";
+                return;
+            }
 
-        const perfil = doc.data().perfil;
-        const emailCompleto = user.email;
+            const perfil = doc.data().perfil;
+            const emailCompleto = user.email;
 
-        carregarConteudoDashboard(perfil, emailCompleto);
+            carregarConteudoDashboard(perfil, emailCompleto);
 
         } catch (error) {
             console.error("Erro ao buscar perfil:", error);
-            //await auth.signOut();
-        // window.location.href = "./login.html";
         }
-});
-
+    });
 
     if (btnLogout) {
         btnLogout.addEventListener('click', async (e) => {
-            e.preventDefault(); 
-            
+            e.preventDefault();
+
             try {
-                // 1. Fazer logout do Firebase
                 await auth.signOut();
-                
-                // 2. Limpar apenas a chave de preferência da sidebar (única chave de localStorage mantida)
                 localStorage.removeItem('sidebarRecolhida');
-                
-                // 3. Redirecionar
                 window.location.href = './login.html';
             } catch (error) {
                 console.error("Erro ao fazer logout Firebase:", error);
             }
         });
     }
-    
-    // NOTA: A lógica do toggle da sidebar (Passo 9) foi movida para a função carregarConteudoDashboard
-    // para garantir que os elementos do DOM estão prontos, mas ainda usa localStorage.
 });

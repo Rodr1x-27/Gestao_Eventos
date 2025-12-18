@@ -1,0 +1,41 @@
+/* =========================
+   Minhas Inscrições (APP)
+   ========================= */
+
+.widget-inscricao hr {
+  opacity: .12;
+}
+
+.widget-inscricao .linha {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+/* Badge de status */
+.badge-status {
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: .4px;
+  display: inline-block;
+}
+
+.badge-status.pago {
+  background: #e8f5e9;
+  color: #1b5e20;
+}
+
+.badge-status.pendente {
+  background: #fff3e0;
+  color: #e65100;
+}
+
+/* Rodapé com data */
+.compra-em {
+  opacity: .75;
+  font-size: 12px;
+}

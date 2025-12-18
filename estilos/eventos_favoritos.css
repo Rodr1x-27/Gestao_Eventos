@@ -1,0 +1,34 @@
+/* =========================
+   Eventos Favoritos (APP)
+   ========================= */
+
+.widget-favorito {
+  border-left: 6px solid var(--cor-amarelo-destaque);
+}
+
+.widget-favorito .topo {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.widget-favorito .btn-remover-fav {
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,.25);
+  background: rgba(0,0,0,.06);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.widget-favorito .btn-remover-fav:hover {
+  background: rgba(0,0,0,.10);
+}
+
+/* Se não tiver favoritos */
+.vazio-info {
+  opacity: .85;
+  padding: 12px 4px;
+}

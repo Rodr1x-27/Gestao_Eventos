@@ -1,0 +1,75 @@
+/* =========================
+   Explorar Eventos (APP)
+   ========================= */
+
+/* Filtros (pesquisa + select) */
+.filtros-eventos {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.filtros-eventos input,
+.filtros-eventos select {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(0,0,0,.15);
+  outline: none;
+  background: #fff;
+  min-height: 42px;
+}
+
+.filtros-eventos input:focus,
+.filtros-eventos select:focus {
+  border-color: rgba(0,0,0,.35);
+  box-shadow: 0 0 0 3px rgba(255, 204, 0, .25);
+}
+
+/* Card do evento */
+.widget-evento {
+  position: relative;
+}
+
+/* Botão estrela (favorito) */
+.widget-evento .btn-favorito {
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,.25);
+  background: rgba(0,0,0,.06);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.widget-evento .btn-favorito:hover {
+  background: rgba(0,0,0,.10);
+}
+
+/* Linha de preços */
+.widget-evento .precos {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+/* Botões do card */
+.widget-evento .acoes {
+  margin-top: 12px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* Modal pagamento (só melhora aspeto, não substitui o inline) */
+#modal-pagamento .modal-box {
+  border-radius: 14px;
+  box-shadow: 0 16px 40px rgba(0,0,0,.25);
+}
+
+#modal-pagamento label {
+  font-weight: 600;
+  display: block;
+  margin-top: 6px;
+}

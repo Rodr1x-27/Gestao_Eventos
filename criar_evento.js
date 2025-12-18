@@ -1,158 +1,180 @@
-import { db, auth, firebase } from './firebase_connection.js'; // Garante que 'firebase' é importado
+import { db, auth, firebase } from './firebase_connection.js';
 
 document.addEventListener('DOMContentLoaded', () => {
-    
-    const form = document.getElementById('form-criar-evento');
 
-    // Verificar se o utilizador está autenticado (Lógica de redirecionamento)
-    auth.onAuthStateChanged((user) => {
-        if (!user) {
-            alert("Precisa de estar logado para criar eventos.");
-            window.location.href = "login.html";
-        }
-    });
+  const form = document.getElementById('form-criar-evento');
 
+  // Verificar se o utilizador está autenticado
+  auth.onAuthStateChanged((user) => {
+    if (!user) {
+      alert("Precisa de estar logado para criar eventos.");
+      window.location.href = "login.html";
+    }
+  });
 
-function setValidacaoNumero(input, min, msg) {
+  function showMsg(msg, tipo = "error") {
+    // se existir showNotification no teu projeto, usa
+    if (typeof window.showNotification === "function") {
+      window.showNotification(msg, tipo);
+    } else {
+      alert(msg);
+    }
+  }
+
+  function setValidacaoNumero(input, min, msg) {
     input.addEventListener('input', () => {
-        const valor = input.value.trim();
+      const valor = input.value.trim();
 
-        // reset
+      input.setCustomValidity("");
+
+      if (valor === "") {
+        if (input.hasAttribute('required')) {
+          input.setCustomValidity("Por favor, preencha este campo.");
+        }
+      } else if (!isNaN(parseFloat(valor)) && parseFloat(valor) < min) {
+        input.setCustomValidity(msg);
+      } else {
         input.setCustomValidity("");
+      }
 
-        if (valor === "") {
-            if (input.hasAttribute('required')) {
-                input.setCustomValidity("Por favor, preencha este campo.");
-            }
-        } else if (!isNaN(parseFloat(valor)) && parseFloat(valor) < min) {
-            input.setCustomValidity(msg);
-        } else {
-            input.setCustomValidity(""); // válido
-        }
-
-        // Atualiza a mensagem visual imediatamente
-        input.reportValidity();
+      input.reportValidity();
     });
-}
+  }
 
-    // Captura os inputs
-    const maxParticipantes = document.getElementById('maxParticipantes');
-    const numOradores = document.getElementById('numOradores');
-    const precoNormal = document.getElementById('precoNormal');
-    const precoVip = document.getElementById('precoVip');
+  // Captura os inputs (para validação)
+  const maxParticipantesInput = document.getElementById('maxParticipantes');
+  const numOradoresInput = document.getElementById('numOradores');
+  const precoNormalInput = document.getElementById('precoNormal');
+  const precoVipInput = document.getElementById('precoVip');
 
-    // Configura validação personalizada
-    
-    setValidacaoNumero(maxParticipantes, 1, "O máximo de participantes deve ser pelo menos 1.");
-    setValidacaoNumero(numOradores, 0, "O número de oradores não pode ser negativo.");
-    setValidacaoNumero(precoNormal, 0, "O preço normal não pode ser negativo.");
-    setValidacaoNumero(precoVip, 0, "O preço VIP não pode ser negativo.");
+  setValidacaoNumero(maxParticipantesInput, 1, "O máximo de participantes deve ser pelo menos 1.");
+  setValidacaoNumero(numOradoresInput, 0, "O número de oradores não pode ser negativo.");
+  setValidacaoNumero(precoNormalInput, 0, "O preço normal não pode ser negativo.");
+  setValidacaoNumero(precoVipInput, 0, "O preço VIP não pode ser negativo.");
 
-    
+  // Submeter o Formulário
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
 
-    // Submeter o Formulário
-    form.addEventListener('submit', async (e) => {
-        e.preventDefault();
+    const user = auth.currentUser;
+    if (!user) return;
 
-        const user = auth.currentUser;
-        if (!user) return;
+    const btn = document.querySelector('.btn-submeter');
+    const textoOriginal = btn ? btn.textContent : "";
+    if (btn) {
+      btn.textContent = "A publicar...";
+      btn.disabled = true;
+    }
 
-        // 1. Capturar valores dos campos GERAIS
-        const nome = document.getElementById('nomeEvento').value;
-        const local = document.getElementById('localEvento').value;
-        const maxParticipantes = parseInt(document.getElementById('maxParticipantes').value);
+    try {
+      // 1) Capturar valores
+      const nome = document.getElementById('nomeEvento').value.trim();
+      const local = document.getElementById('localEvento').value.trim();
 
-        // Data e Hora combinadas
-        const dataStr = document.getElementById('dataEvento').value;
-        const horaStr = document.getElementById('horaEvento').value;
-        const dataHoraCombinada = new Date(`${dataStr}T${horaStr}`);
+      const maxParticipantes = parseInt(document.getElementById('maxParticipantes').value, 10);
 
-        // Oradores
-        const numOradores = parseInt(document.getElementById('numOradores').value) || 0;
+      const dataStr = document.getElementById('dataEvento').value; // ideal: input type="date" => YYYY-MM-DD
+      const horaStr = document.getElementById('horaEvento').value; // ideal: input type="time" => HH:MM
 
-        let mensagemErro = null;
+      // (Recomendado) Tipo do evento (se tiveres um select com id="tipoEvento")
+      // Se não tiveres no HTML, isto fica automaticamente "academico"
+      const tipoEl = document.getElementById('tipoEvento');
+      const tipo = tipoEl ? (tipoEl.value || "academico") : "academico";
 
-        if (numOradores < 0) {
-            mensagemErro = "O número de oradores não pode ser negativo.";
+      // Oradores
+      const numOradores = parseInt(document.getElementById('numOradores').value, 10) || 0;
+      const nomesOradoresTexto = document.getElementById('nomesOradores').value || "";
+      const listaOradores = nomesOradoresTexto
+        .split(',')
+        .map(n => n.trim())
+        .filter(n => n !== "");
+
+      // Preços
+      const precoNormal = parseFloat(document.getElementById('precoNormal').value);
+      const precoVipRaw = document.getElementById('precoVip').value;
+      const precoVip = precoVipRaw !== "" ? parseFloat(precoVipRaw) : null;
+
+      // 2) Validações
+      let mensagemErro = null;
+
+      if (!nome) mensagemErro = "O Nome do Evento é obrigatório.";
+      else if (!local) mensagemErro = "A Localização / Morada é obrigatória.";
+      else if (isNaN(maxParticipantes) || maxParticipantes <= 0) mensagemErro = "O Máximo de Participantes deve ser um número válido e positivo.";
+      else if (!dataStr) mensagemErro = "A Data do Evento é obrigatória.";
+      else if (!horaStr) mensagemErro = "A Hora do Evento é obrigatória.";
+      else if (numOradores < 0) mensagemErro = "O número de oradores não pode ser negativo.";
+      else if (isNaN(precoNormal) || precoNormal <= 0) mensagemErro = "O Preço Bilhete Normal deve ser um valor válido e positivo.";
+
+      if (mensagemErro) {
+        showMsg(`🛑 Erro de Validação: ${mensagemErro}`, 'error');
+
+        // 🔥 IMPORTANTE: reativar botão ao sair por erro
+        if (btn) {
+          btn.textContent = textoOriginal;
+          btn.disabled = false;
         }
+        return;
+      }
 
-        const nomesOradoresTexto = document.getElementById('nomesOradores').value;
+      // 3) Criar data com segurança
+      // Se dataStr for YYYY-MM-DD, isto funciona bem.
+      // Se por algum motivo vier num formato estranho, ainda assim evitamos datas malucas.
+      let dataHoraCombinada;
+      if (/^\d{4}-\d{2}-\d{2}$/.test(dataStr) && /^\d{2}:\d{2}/.test(horaStr)) {
+        dataHoraCombinada = new Date(`${dataStr}T${horaStr}:00`);
+      } else {
+        // fallback (menos ideal)
+        dataHoraCombinada = new Date(`${dataStr} ${horaStr}`);
+      }
 
-        // --- Captura dos Preços (Normal e VIP) ---
-        const precoNormal = parseFloat(document.getElementById('precoNormal').value);
+      // 4) Objeto do Evento (compatível com tudo)
+      const novoEvento = {
+        nome,
+        local,
+        tipo, // ✅ agora dá para filtrar no explorar
+        max_participantes: maxParticipantes,
 
-        const precoVipInput = document.getElementById('precoVip').value;
-        const precoVip = precoVipInput !== "" ? parseFloat(precoVipInput) : null;
+        num_oradores: numOradores,
+        oradores: listaOradores,
 
-        // Transformar string de oradores num Array
-        const listaOradores = nomesOradoresTexto.split(',').map(nome => nome.trim()).filter(n => n !== "");
+        data_inicio: firebase.firestore.Timestamp.fromDate(dataHoraCombinada),
+        data_string: dataStr,
+        hora_string: horaStr,
 
-        // 2. Criar Objeto do Evento (Estrutura Atualizada)
-        const novoEvento = {
-            nome: nome,
-            local: local,
-            max_participantes: maxParticipantes,
-            
-            // Oradores Reintegrados
-            num_oradores: numOradores,
-            oradores: listaOradores,
-            
-            data_inicio: firebase.firestore.Timestamp.fromDate(dataHoraCombinada),
-            data_string: dataStr, 
-            hora_string: horaStr,
-            
-            // FORMATO DE PREÇOS
-            precos: {
-                normal: precoNormal,
-                vip: precoVip
-            },
+        precos: {
+          normal: precoNormal,
+          vip: precoVip
+        },
 
-            responsavel_uid: user.uid, 
-            estado: "ativo",
-            inscritos_atuais: 0,
-            criado_em: firebase.firestore.FieldValue.serverTimestamp()
-        };
+        // ✅ mantemos o teu campo (para não partir nada)
+        responsavel_uid: user.uid,
 
-        // 3. Enviar para o Firestore
-        try {
-            const btn = document.querySelector('.btn-submeter');
-            const textoOriginal = btn.textContent;
-            
-            btn.textContent = "A publicar...";
-            btn.disabled = true;
-            if (!nome) {
-                mensagemErro = "O Nome do Evento é obrigatório.";
-            } else if (!local) {
-                mensagemErro = "A Localização / Morada é obrigatória.";
-            } else if (isNaN(maxParticipantes) || maxParticipantes <= 0) {
-                mensagemErro = "O Máximo de Participantes deve ser um número válido e positivo.";
-            } else if (!dataStr) {
-                mensagemErro = "A Data do Evento é obrigatória.";
-            } else if (!horaStr) {
-                mensagemErro = "A Hora do Evento é obrigatória.";
-            } else if (isNaN(precoNormal) || precoNormal <= 0) {
-                mensagemErro = "O Preço Bilhete Normal deve ser um valor válido e positivo.";
-            }
+        // ✅ ADICIONAMOS o campo “padrão” (para correlação universal)
+        organizadorUid: user.uid,
 
-            // SE HOUVER ERRO DE VALIDAÇÃO: Pára o processo e notifica o utilizador.
-            if (mensagemErro) {
-                showNotification(`🛑 Erro de Validação: ${mensagemErro}`, 'error');
-                return; // *** Pára a submissão AQUI. ***
-            }
+        estado: "ativo",
+        inscritos_atuais: 0,
 
-            await db.collection("eventos").add(novoEvento);
+        // ✅ timestamps (mantemos o teu + adicionamos o padrão)
+        criado_em: firebase.firestore.FieldValue.serverTimestamp(),
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
 
-            //alert("Sucesso! O evento foi criado e publicado.");
-            window.location.href = "dashboard.html"; 
+      // 5) Guardar no Firestore
+      await db.collection("eventos").add(novoEvento);
 
-        } catch (error) {
-            console.error("Erro ao criar evento:", error);
-            alert("Erro ao criar o evento: " + error.message);
-            
-            const btn = document.querySelector('.btn-submeter');
-            btn.textContent = textoOriginal; 
-            btn.disabled = false;
-        }
-    }); 
-    
-}); // Fecho do DOMContentLoaded
+      // redirecionar
+      window.location.href = "dashboard.html";
+
+    } catch (error) {
+      console.error("Erro ao criar evento:", error);
+      alert("Erro ao criar o evento: " + error.message);
+
+      if (btn) {
+        btn.textContent = textoOriginal;
+        btn.disabled = false;
+      }
+    }
+  });
+
+});
