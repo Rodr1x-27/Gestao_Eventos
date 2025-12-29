@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="estilos/explorar_eventos.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
 
-  <!-- ✅ IMPORTANTE: Firebase v8 scripts (necessário porque o teu firebase_connection.js usa "firebase" global) -->
+  <!-- Firebase v8 -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
@@ -53,17 +53,14 @@
         <p>Eventos disponíveis criados pelos organizadores.</p>
       </header>
 
-      <section class="filtros-eventos">
-        <input id="pesquisa" type="text" placeholder="Pesquisar por nome/local..." />
-        <select id="tipo">
-          <option value="todos">Todos</option>
-          <option value="academico">Académico</option>
-          <option value="cultural">Cultural</option>
-          <option value="desportivo">Desportivo</option>
-        </select>
+      <!-- ✅ PESQUISA PREMIUM (sem select) -->
+      <section class="filtros-eventos filtros-unico">
+        <div class="pesquisa-box">
+          <i class="fas fa-search"></i>
+          <input id="pesquisa" type="text" placeholder="Pesquisar por nome do evento..." />
+        </div>
       </section>
 
-      <!-- ✅ Aqui aparecem erros visíveis -->
       <div id="debug-erro" style="display:none;padding:12px;border-radius:10px;background:#fff3f3;border:1px solid #ffb3b3;color:#8a0000;margin-bottom:12px;"></div>
 
       <section id="lista-eventos" class="widgets-container"></section>
@@ -71,7 +68,6 @@
 
   </div>
 
-  <!-- ✅ Tem de ser module porque o teu firebase_connection.js usa export/import -->
   <script type="module" src="explorar_eventos.js"></script>
 </body>
 </html>

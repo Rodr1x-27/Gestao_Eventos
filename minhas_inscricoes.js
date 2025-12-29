@@ -1,23 +1,32 @@
-import { auth, db } from "./firebase_connection.js";
+import { db, auth } from "./firebase_connection.js";
+
+// Firebase v8 global
+const firebase = window.firebase;
 
 const listaEl = document.getElementById("lista-inscricoes");
 const nomeEl = document.getElementById("display-nome-utilizador");
 const btnLogout = document.getElementById("btn-logout");
+const debugErro = document.getElementById("debug-erro");
 
-// Sidebar toggle
+// sidebar toggle
 const toggleBtn = document.getElementById("toggle-sidebar");
 const container = document.getElementById("dashboard-container");
 
+function showErro(msg) {
+  console.error(msg);
+  if (debugErro) {
+    debugErro.style.display = "block";
+    debugErro.textContent = msg;
+  }
+}
+
 function aplicarSidebarToggle() {
   if (!toggleBtn || !container) return;
-
   const isRecolhida = localStorage.getItem("sidebarRecolhida") === "true";
   if (isRecolhida) {
     container.classList.add("sidebar-recolhida");
     toggleBtn.textContent = "→";
-  } else {
-    toggleBtn.textContent = "←";
-  }
+  } else toggleBtn.textContent = "←";
 
   toggleBtn.addEventListener("click", () => {
     container.classList.toggle("sidebar-recolhida");
@@ -32,77 +41,147 @@ function euro(n) {
   return v.toLocaleString("pt-PT", { style: "currency", currency: "EUR" });
 }
 
-function fmtData(d) {
+function tsToDateString(ts) {
   try {
-    if (d && typeof d.toDate === "function") {
-      return d.toDate().toLocaleString("pt-PT");
-    }
-  } catch {}
-  return "—";
+    if (!ts) return "—";
+    const d = typeof ts.toDate === "function" ? ts.toDate() : new Date(ts);
+    return d.toLocaleString("pt-PT");
+  } catch {
+    return "—";
+  }
 }
 
-function badge(status) {
-  const s = (status || "pendente").toLowerCase();
-  const cls = s === "pago" ? "badge-status pago" : "badge-status pendente";
-  return `<span class="${cls}">${(status || "pendente").toUpperCase()}</span>`;
+function getEventoParam() {
+  const p = new URLSearchParams(window.location.search);
+  return p.get("evento"); // minhas_inscricoes.html?evento=...
 }
 
-function cardInscricao(item) {
-  const e = item.evento || {};
-  const tipoBilhete = (item.tipoBilhete || "—").toUpperCase();
-  const qtd = item.quantidade ?? "—";
-  const total = item.total != null ? euro(item.total) : "—";
-
-  return `
-    <div class="widget widget-inscricao">
-      <h3 style="margin:0 0 8px 0;">${e.nome || "Evento"}</h3>
-
-      <p class="widget-detalhe"><i class="fas fa-calendar-alt"></i> ${e.data_string || "Data a definir"} ${e.hora_string ? " · " + e.hora_string : ""}</p>
-      <p class="widget-detalhe"><i class="fas fa-map-marker-alt"></i> ${e.local || "Local a definir"}</p>
-
-      <hr style="margin:12px 0;">
-
-      <p class="widget-detalhe"><i class="fas fa-ticket-alt"></i> Bilhete: <strong>${tipoBilhete}</strong></p>
-      <p class="widget-detalhe"><i class="fas fa-sort-numeric-up"></i> Quantidade: <strong>${qtd}</strong></p>
-      <p class="widget-detalhe"><i class="fas fa-euro-sign"></i> Total: <strong>${total}</strong></p>
-
-      <div class="linha">
-        <div>${badge(item.status)}</div>
-        <div class="compra-em">Comprado em: ${fmtData(item.createdAt)}</div>
+function renderInscricoes(inscricoes) {
+  if (!inscricoes.length) {
+    listaEl.innerHTML = `
+      <div class="ticket-empty">
+        <h3>Ainda não tens inscrições</h3>
+        <p>Vai a “Explorar Eventos” e inscreve-te num evento para gerar o bilhete.</p>
+        <a class="btn-go" href="explorar_eventos.html"><i class="fas fa-search"></i> Explorar eventos</a>
       </div>
-
-      <div style="margin-top:12px;">
-        <a class="btn-logout" href="explorar_eventos.html"><i class="fas fa-search"></i> <span>Comprar mais</span></a>
-      </div>
-    </div>
-  `;
-}
-
-async function carregarInscricoes(uid) {
-  listaEl.innerHTML = `<p class="widget-detalhe">A carregar as tuas inscrições...</p>`;
-
-  const snap = await db.collection("inscricoes").where("uid", "==", uid).get();
-  if (snap.empty) {
-    listaEl.innerHTML = `<p class="widget-detalhe">Ainda não compraste bilhetes. Vai a "Explorar Eventos".</p>`;
+    `;
     return;
   }
 
-  const inscricoes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  listaEl.innerHTML = inscricoes.map((i) => {
+    const tipo = (i.tipo_bilhete || "normal").toUpperCase();
+    const valor = euro(i.valor_pago ?? 0);
 
-  const resultado = [];
-  for (const ins of inscricoes) {
-    const evDoc = await db.collection("eventos").doc(ins.eventoId).get();
-    const evento = evDoc.exists ? { id: evDoc.id, ...evDoc.data() } : null;
-    resultado.push({ ...ins, evento });
-  }
+    return `
+      <div class="ticket-card" id="ticket-${i.__docId}">
+        <div class="ticket-head">
+          <div>
+            <h3 class="ticket-title">${i.evento_nome || "Evento"}</h3>
+            <div class="ticket-sub">
+              <span><i class="fas fa-map-marker-alt"></i> ${i.evento_local || "—"}</span>
+              <span><i class="fas fa-calendar-alt"></i> ${i.evento_data_string || "—"}${i.evento_hora_string ? " · " + i.evento_hora_string : ""}</span>
+            </div>
+          </div>
 
-  resultado.sort((a, b) => {
-    const da = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
-    const dbb = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
-    return dbb - da;
+          <div class="ticket-badge ${tipo === "VIP" ? "vip" : "normal"}">
+            ${tipo}
+          </div>
+        </div>
+
+        <div class="ticket-body">
+          <div class="ticket-info">
+            <p><strong>Nome:</strong> ${i.nome || "—"}</p>
+            <p><strong>Email:</strong> ${i.email || "—"}</p>
+            <p><strong>Idade:</strong> ${i.idade ?? "—"}</p>
+            <p><strong>Pago:</strong> ${valor}</p>
+            <p><strong>Estado:</strong> ${i.estado_pagamento || "—"}</p>
+            <p class="ticket-date"><strong>Gerado em:</strong> ${tsToDateString(i.criadoEm)}</p>
+          </div>
+
+          <div class="ticket-qr">
+            <div class="qr-box" id="qr-${i.__docId}"></div>
+            <div class="qr-hint">Mostra este QR Code na entrada</div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  // gerar QRs
+  inscricoes.forEach((i) => {
+    const el = document.getElementById(`qr-${i.__docId}`);
+    if (!el) return;
+
+    el.innerHTML = "";
+    // eslint-disable-next-line no-undef
+    new QRCode(el, {
+      text: i.qr_data || `IPCA|uid=${i.uid_user}|evento=${i.uid_evento}`,
+      width: 160,
+      height: 160
+    });
   });
+}
 
-  listaEl.innerHTML = resultado.map(cardInscricao).join("");
+function destacarTicket(docId) {
+  const el = document.getElementById(`ticket-${docId}`);
+  if (!el) return;
+
+  el.classList.add("ticket-destaque");
+
+  // scroll suave até ao bilhete
+  setTimeout(() => {
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, 200);
+
+  // remove o destaque passado uns segundos
+  setTimeout(() => {
+    el.classList.remove("ticket-destaque");
+  }, 3500);
+}
+
+async function carregarInscricoes(uid) {
+  try {
+    listaEl.innerHTML = `<p class="widget-detalhe">A carregar bilhetes...</p>`;
+
+    const snap = await db.collection("inscricoes")
+      .where("uid_user", "==", uid)
+      .get();
+
+    let arr = [];
+    snap.forEach((doc) => {
+      arr.push({ __docId: doc.id, ...doc.data() });
+    });
+
+    // ordenar por criadoEm desc
+    arr.sort((a, b) => {
+      const ta = a.criadoEm?.toMillis ? a.criadoEm.toMillis() : 0;
+      const tb = b.criadoEm?.toMillis ? b.criadoEm.toMillis() : 0;
+      return tb - ta;
+    });
+
+    // ✅ se veio do Dashboard com ?evento=...
+    const eventoId = getEventoParam();
+    let docParaDestacar = null;
+
+    if (eventoId) {
+      const idx = arr.findIndex((x) => String(x.uid_evento) === String(eventoId));
+      if (idx !== -1) {
+        const ticket = arr[idx];
+        docParaDestacar = ticket.__docId;
+
+        // mover para o topo
+        arr = [ticket, ...arr.filter((_, i) => i !== idx)];
+      }
+    }
+
+    renderInscricoes(arr);
+
+    if (docParaDestacar) destacarTicket(docParaDestacar);
+
+  } catch (err) {
+    showErro("ERRO a carregar inscrições: " + (err?.message || String(err)));
+    listaEl.innerHTML = `<p class="widget-detalhe">Erro ao carregar bilhetes.</p>`;
+  }
 }
 
 // Logout
@@ -120,13 +199,6 @@ auth.onAuthStateChanged(async (user) => {
     return;
   }
 
-  const doc = await db.collection("utilizadores").doc(user.uid).get();
-  const perfil = doc.exists ? doc.data().perfil : null;
-  if (perfil !== "participante") {
-    window.location.href = "./dashboard.html";
-    return;
-  }
-
-  nomeEl.textContent = user.email.split("@")[0];
+  nomeEl.textContent = (user.email || "Utilizador").split("@")[0];
   await carregarInscricoes(user.uid);
 });

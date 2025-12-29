@@ -8,6 +8,11 @@
   <link rel="stylesheet" href="estilos/dashboard.css" />
   <link rel="stylesheet" href="estilos/eventos_favoritos.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+
+  <!-- Firebase v8 -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 </head>
 
 <body>
@@ -45,8 +50,14 @@
     <main class="main-content">
       <header class="main-header">
         <h1>Eventos Favoritos</h1>
-        <p>Os eventos que marcaste com ★ aparecem aqui.</p>
+        <p>Os eventos que guardaste para mais tarde.</p>
       </header>
+
+      <section class="filtros-favoritos">
+        <input id="pesquisa" type="text" placeholder="Pesquisar por nome/local..." />
+      </section>
+
+      <div id="debug-erro" style="display:none;padding:12px;border-radius:10px;background:#fff3f3;border:1px solid #ffb3b3;color:#8a0000;margin-bottom:12px;"></div>
 
       <section id="lista-favoritos" class="widgets-container"></section>
     </main>

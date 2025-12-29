@@ -1,0 +1,220 @@
+/* =========================
+   PERFIL — PREMIUM + ORGANIZADO
+========================= */
+
+:root{
+  --card-bg: rgba(255,255,255,.92);
+  --card-border: rgba(0,0,0,.08);
+  --shadow: 0 12px 28px rgba(0,0,0,.08);
+  --radius: 16px;
+}
+
+/* Grid: 2 colunas (topo), info full-width (baixo) */
+.perfil-grid{
+  display:grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 18px;
+  align-items: start;
+}
+
+/* Card 3 (Informação da Conta) ocupa as 2 colunas */
+.perfil-grid .perfil-card-side{
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 980px){
+  .perfil-grid{
+    grid-template-columns: 1fr;
+  }
+  .perfil-grid .perfil-card-side{
+    grid-column: auto;
+  }
+}
+
+/* Card */
+.perfil-card{
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 18px;
+  overflow: hidden;
+}
+
+/* Cabeçalhos consistentes */
+.perfil-card h2{
+  margin: 0;
+  font-size: 16px;
+  font-weight: 900;
+  display:flex;
+  align-items:center;
+  gap: 10px;
+}
+
+.perfil-card-top{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid rgba(0,0,0,.08);
+}
+
+.perfil-pill{
+  background: rgba(11,94,215,.10);
+  color: #0b5ed7;
+  border: 1px solid rgba(11,94,215,.22);
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-weight: 900;
+  font-size: 12px;
+}
+
+/* Form */
+.perfil-form{
+  display:grid;
+  gap: 12px;
+}
+
+.row-2{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 620px){
+  .row-2{ grid-template-columns: 1fr; }
+}
+
+/* Campos */
+.campo label{
+  display:block;
+  font-size: 12px;
+  font-weight: 900;
+  margin-bottom: 6px;
+  opacity: .9;
+}
+
+.campo input,
+.campo textarea{
+  width:100%;
+  border-radius: 12px;
+  border: 1px solid rgba(0,0,0,.14);
+  padding: 11px 12px;
+  outline: none;
+  font-size: 14px;
+  background: #fff;
+  transition: border .12s ease, box-shadow .12s ease, transform .12s ease;
+}
+
+.campo input:focus,
+.campo textarea:focus{
+  border-color: rgba(11,94,215,.45);
+  box-shadow: 0 0 0 4px rgba(11,94,215,.12);
+}
+
+.campo input:disabled{
+  background: rgba(0,0,0,.04);
+  color: rgba(0,0,0,.55);
+}
+
+/* Texto explicativo */
+.widget-detalhe{
+  font-size: 12px;
+  opacity: .72;
+  margin: 8px 0 0;
+}
+
+/* Ações: botões alinhados, mesma altura */
+.acoes{
+  display:flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.acoes .btn{
+  width: 100%;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-weight: 900;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap: 10px;
+  box-shadow: 0 10px 20px rgba(0,0,0,.12);
+  transition: transform .12s ease, box-shadow .12s ease, filter .12s ease;
+}
+
+.acoes .btn:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 14px 26px rgba(0,0,0,.16);
+  filter: brightness(1.02);
+}
+
+/* Status */
+.status{
+  margin-top: 10px;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-weight: 900;
+  font-size: 13px;
+}
+
+.status.ok{
+  background: rgba(46, 204, 113, .12);
+  color: #0a6b2a;
+  border: 1px solid rgba(46, 204, 113, .25);
+}
+
+.status.err{
+  background: rgba(255, 77, 79, .12);
+  color: #8a0000;
+  border: 1px solid rgba(255, 77, 79, .25);
+}
+
+/* Card Informação da Conta — mais compacto e alinhado */
+.perfil-card-side{
+  padding: 16px 18px;
+}
+
+.perfil-card-side h2{
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(0,0,0,.08);
+}
+
+.perfil-card-side .info-line{
+  display:grid;
+  grid-template-columns: 160px 1fr;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(0,0,0,.08);
+}
+
+.perfil-card-side .k{
+  font-weight: 900;
+  opacity: .8;
+}
+
+.perfil-card-side .v{
+  opacity: .9;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+.mono{
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 12px;
+}
+
+/* Debug */
+.debug-erro{
+  padding: 12px;
+  border-radius: 12px;
+  background: #fff3f3;
+  border: 1px solid #ffb3b3;
+  color: #8a0000;
+  margin-bottom: 12px;
+}

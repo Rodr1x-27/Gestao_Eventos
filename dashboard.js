@@ -1,237 +1,359 @@
 import { auth, db } from './firebase_connection.js';
 
-// ESTA FUNÇÃO PERMANECE INALTERADA (APENAS SIMULAÇÃO DE DADOS ESTÁTICOS)
-function obterDadosDoUtilizador(perfil, email) {
-    if (perfil === 'organizador') {
-        return {
-            totalArrecadado: 14720.50,
-            inscricoesTotais: 412,
-            eventosAtivos: 7,
-            notificacoes: 2
-        };
-    }
-
-    else if (perfil === 'participante') {
-        return {
-            proximoEvento: {
-                nome: "Workshop de Design Thinking",
-                data: "10/12/2025",
-                local: "Sala B1.04",
-                orador: "Prof. Maria Sousa"
-            },
-            bilhetes: {
-                total: 3,
-                vip: 1,
-                normal: 2,
-                gastoTotal: 85.55
-            },
-            notificacoes: 5
-        };
-    }
-    return {};
+/* ===============================
+   HELPERS
+================================ */
+function euro(n) {
+  const v = Number(n ?? 0);
+  return v.toLocaleString("pt-PT", { style: "currency", currency: "EUR" });
 }
 
+function parseDataHora(dataStr, horaStr) {
+  if (!dataStr) return null;
+  const h = horaStr || "00:00";
+  const d = new Date(`${dataStr}T${h}`);
+  if (isNaN(d.getTime())) return null;
+  return d;
+}
 
-// NOVO: Função para encapsular toda a lógica de renderização original
-function carregarConteudoDashboard(perfil, emailCompleto) {
+function formatDataPT(dateStr) {
+  // espera "YYYY-MM-DD"
+  if (!dateStr) return "—";
+  const parts = String(dateStr).split("-");
+  if (parts.length !== 3) return String(dateStr);
+  return `${parts[2]}/${parts[1]}/${parts[0]}`;
+}
 
-    const nomeBase = emailCompleto.split('@')[0];
+function capitalizar(s) {
+  if (!s) return "";
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
 
-    // Pontos de injeção do javascript para o HTML com base no id
-    const menuContainer = document.getElementById('menu-principal-dinamico');
-    const conteudoContainer = document.getElementById('conteudo-principal-dinamico');
-    const nomeUtilizadorEl = document.getElementById('display-nome-utilizador');
-    const perfilUtilizadorEl = document.getElementById('display-perfil-utilizador');
-    const tituloHeaderEl = document.getElementById('display-header-titulo');
-    const subtituloHeaderEl = document.getElementById('display-header-subtitulo');
-    const logoLink = document.getElementById('logo-link');
+/* ===============================
+   PARTICIPANTE: DADOS REAIS
+   (coleção: inscricoes)
+================================ */
+async function obterDadosParticipante(uid) {
+  const snap = await db.collection("inscricoes").where("uid_user", "==", uid).get();
 
-    // VERIFICAÇÃO CRÍTICA: Se o perfil for inválido, paramos.
-    if (!perfil || (perfil !== 'organizador' && perfil !== 'participante')) {
-        if (tituloHeaderEl) tituloHeaderEl.textContent = 'ERRO DE PERFIL';
-        if (subtituloHeaderEl) subtituloHeaderEl.textContent = 'O tipo de perfil é inválido. Verifique o login.';
-        console.error('ERRO CRÍTICO: Perfil do Utilizador não é "organizador" nem "participante".');
-        return;
+  const inscricoes = [];
+  snap.forEach((doc) => inscricoes.push({ id: doc.id, ...doc.data() }));
+
+  const total = inscricoes.length;
+  const vip = inscricoes.filter(i => (i.tipo_bilhete || "").toLowerCase() === "vip").length;
+  const normal = inscricoes.filter(i => (i.tipo_bilhete || "").toLowerCase() !== "vip").length;
+
+  const gastoTotal = inscricoes.reduce((acc, i) => acc + Number(i.valor_pago ?? 0), 0);
+
+  // Próximo evento futuro: data/hora mais próxima (>= agora)
+  const agora = new Date();
+  const futuras = inscricoes
+    .map(i => ({ ...i, __dt: parseDataHora(i.evento_data_string, i.evento_hora_string) }))
+    .filter(i => i.__dt && i.__dt.getTime() >= agora.getTime())
+    .sort((a, b) => a.__dt - b.__dt);
+
+  let proximoEvento = null;
+
+  if (futuras.length > 0) {
+    const p = futuras[0];
+    proximoEvento = {
+      uid_evento: p.uid_evento || "",           // ✅ necessário para abrir bilhete direto
+      nome: p.evento_nome || "Evento",
+      data: p.evento_data_string || "",
+      hora: p.evento_hora_string || "",
+      local: p.evento_local || "—",
+      tipo_bilhete: p.tipo_bilhete || "normal"
+    };
+  } else if (inscricoes.length > 0) {
+    // fallback: mostra o mais “perto” (mesmo que já tenha passado) para não ficar vazio
+    const ordenadas = inscricoes
+      .map(i => ({ ...i, __dt: parseDataHora(i.evento_data_string, i.evento_hora_string) }))
+      .filter(i => i.__dt)
+      .sort((a, b) => a.__dt - b.__dt);
+
+    if (ordenadas.length > 0) {
+      const p = ordenadas[0];
+      proximoEvento = {
+        uid_evento: p.uid_evento || "",
+        nome: p.evento_nome || "Evento",
+        data: p.evento_data_string || "",
+        hora: p.evento_hora_string || "",
+        local: p.evento_local || "—",
+        tipo_bilhete: p.tipo_bilhete || "normal"
+      };
+    }
+  }
+
+  return {
+    proximoEvento,
+    bilhetes: { total, vip, normal, gastoTotal },
+    notificacoes: 5 // manténs como estático
+  };
+}
+
+/* ===============================
+   ORGANIZADOR (mantém simples)
+================================ */
+function obterDadosOrganizador() {
+  return {
+    totalArrecadado: 14720.50,
+    inscricoesTotais: 412,
+    eventosAtivos: 7,
+    notificacoes: 2
+  };
+}
+
+/* ===============================
+   RENDER DASHBOARD
+================================ */
+async function carregarConteudoDashboard(perfil, emailCompleto, uid) {
+  const nomeBase = (emailCompleto || "Utilizador").split("@")[0];
+
+  const menuContainer = document.getElementById('menu-principal-dinamico');
+  const conteudoContainer = document.getElementById('conteudo-principal-dinamico');
+  const nomeUtilizadorEl = document.getElementById('display-nome-utilizador');
+  const perfilUtilizadorEl = document.getElementById('display-perfil-utilizador');
+  const tituloHeaderEl = document.getElementById('display-header-titulo');
+  const subtituloHeaderEl = document.getElementById('display-header-subtitulo');
+  const logoLink = document.getElementById('logo-link');
+
+  if (!perfil || (perfil !== 'organizador' && perfil !== 'participante')) {
+    if (tituloHeaderEl) tituloHeaderEl.textContent = 'ERRO DE PERFIL';
+    if (subtituloHeaderEl) subtituloHeaderEl.textContent = `Perfil inválido: ${perfil}`;
+    console.error('Perfil inválido:', perfil);
+    return;
+  }
+
+  if (logoLink) logoLink.href = 'dashboard.html';
+
+  let menuHTML = '';
+  let conteudoHTML = '';
+
+  /* ===============================
+     ORGANIZADOR
+  ================================ */
+  if (perfil === 'organizador') {
+    const dados = obterDadosOrganizador();
+
+    if (tituloHeaderEl) tituloHeaderEl.textContent = `Bem-vindo ${nomeBase}!`;
+    if (subtituloHeaderEl) subtituloHeaderEl.textContent = 'Crie os melhores eventos, workshops e conferências do IPCA!';
+
+    menuHTML = `
+      <a href="dashboard.html" class="menu-item active"><i class="fas fa-home"></i><span>Menu Inicial</span></a>
+      <a href="criar_evento.html" class="menu-item"><i class="fas fa-plus-circle"></i><span>Criar Evento</span></a>
+      <a href="editar_eventos.html" class="menu-item"><i class="fas fa-edit"></i><span>Editar Evento</span></a>
+      <a href="relatorios.html" class="menu-item"><i class="fas fa-chart-line"></i><span>Relatórios & Vendas</span></a>
+      <a href="dados_pessoais.html" class="menu-item"><i class="fas fa-user-cog"></i><span>Gestão de Perfil</span></a>
+    `;
+
+    conteudoHTML = `
+      <div class="widget">
+        <div class="widget-top">
+          <h3>Total Arrecadado</h3>
+          <i class="fas fa-euro-sign"></i>
+        </div>
+        <p class="widget-numero widget-dinheiro">${euro(dados.totalArrecadado)}</p>
+        <p class="widget-detalhe">Receita bruta total (bilhetes normal e VIP).</p>
+      </div>
+
+      <div class="widget">
+        <div class="widget-top">
+          <h3>Inscrições Totais</h3>
+          <i class="fas fa-users"></i>
+        </div>
+        <p class="widget-numero">${dados.inscricoesTotais}</p>
+        <p class="widget-detalhe">Total de participantes em todos os eventos.</p>
+      </div>
+
+      <div class="widget">
+        <div class="widget-top">
+          <h3>Eventos Ativos</h3>
+          <i class="fas fa-calendar-check"></i>
+        </div>
+        <p class="widget-numero">${dados.eventosAtivos}</p>
+        <p class="widget-detalhe">Eventos com inscrições ativas.</p>
+      </div>
+
+      <div class="widget">
+        <div class="widget-top">
+          <h3>Notificações</h3>
+          <i class="fas fa-bell"></i>
+        </div>
+        <p class="widget-numero">${dados.notificacoes}</p>
+        <p class="widget-detalhe">Alertas e pendências não lidas.</p>
+      </div>
+
+      <div class="widget widget-cta">
+        <h3>Pronto para o próximo evento?</h3>
+        <p class="widget-detalhe">Comece a configurar a sua próxima conferência ou workshop.</p>
+        <a href="criar_evento.html" class="btn btn-primario"><i class="fas fa-plus-circle"></i> Criar Novo Evento</a>
+      </div>
+    `;
+  }
+
+  /* ===============================
+     PARTICIPANTE
+  ================================ */
+  if (perfil === 'participante') {
+    if (tituloHeaderEl) tituloHeaderEl.textContent = `Bem-vindo ${nomeBase}!`;
+    if (subtituloHeaderEl) subtituloHeaderEl.textContent = 'Participe nos melhores eventos, workshops e conferências do IPCA!';
+
+    menuHTML = `
+      <a href="dashboard.html" class="menu-item active"><i class="fas fa-home"></i><span>Menu Inicial</span></a>
+      <a href="explorar_eventos.html" class="menu-item"><i class="fas fa-search"></i><span>Explorar Eventos</span></a>
+      <a href="minhas_inscricoes.html" class="menu-item"><i class="fas fa-ticket-alt"></i><span>As Minhas Inscrições</span></a>
+      <a href="eventos_favoritos.html" class="menu-item"><i class="fas fa-star"></i><span>Eventos Favoritos</span></a>
+      <a href="dados_pessoais.html" class="menu-item"><i class="fas fa-user-cog"></i><span>Gestão de Perfil</span></a>
+    `;
+
+    if (conteudoContainer) {
+      conteudoContainer.innerHTML = `<p class="widget-detalhe">A carregar dados do dashboard...</p>`;
     }
 
-    // Definir o link do logo
-    if (logoLink) logoLink.href = 'dashboard.html';
+    const dados = await obterDadosParticipante(uid);
 
-    // Obter dados simulados
-    const dados = obterDadosDoUtilizador(perfil, emailCompleto);
+    const prox = dados.proximoEvento;
+    const temProximo = !!prox;
 
-    let menuHTML = '';
-    let conteudoHTML = '';
+    const tipoProx = (prox?.tipo_bilhete || "normal").toUpperCase();
 
-    if (perfil === 'organizador') {
+    conteudoHTML = `
+      <div class="widget">
+        <div class="widget-top">
+          <h3>Próximo Evento</h3>
+          <i class="fas fa-calendar-alt"></i>
+        </div>
 
-        if (tituloHeaderEl) tituloHeaderEl.textContent = `Bem-vindo ${nomeBase}!`;
-        if (subtituloHeaderEl) subtituloHeaderEl.textContent = 'Crie os melhores eventos, workshops e conferências do IPCA!';
+        ${
+          temProximo
+            ? `
+              <p class="widget-titulo-destaque">${prox.nome}</p>
+              <p class="widget-detalhe"><i class="fas fa-calendar-alt"></i> Data: ${formatDataPT(prox.data)}${prox.hora ? ` · ${prox.hora}` : ""}</p>
+              <p class="widget-detalhe"><i class="fas fa-map-marker-alt"></i> Local: ${prox.local}</p>
+              <p class="widget-detalhe"><i class="fas fa-ticket-alt"></i> Bilhete: <b>${tipoProx}</b></p>
 
-        menuHTML = `
-            <a href="dashboard.html" class="menu-item active"><i class="fas fa-home"></i><span>Menu Inicial</span></a>
-            <a href="criar_evento.html" class="menu-item"><i class="fas fa-plus-circle"></i><span>Criar Evento</span></a>
-            <a href="editar_eventos.html" class="menu-item"><i class="fas fa-edit"></i><span>Editar Evento</span></a>
-            <a href="relatorios.html" class="menu-item"><i class="fas fa-chart-line"></i><span>Relatórios & Vendas</span></a>
-            <a href="dados_pessoais.html" class="menu-item"><i class="fas fa-user-cog"></i><span>Gestão de Perfil</span></a>
-        `;
-
-        conteudoHTML = `
-            <div class="widget">
-                <h3>Total Arrecadado (€)</h3>
-                <p class="widget-numero widget-dinheiro">${dados.totalArrecadado.toLocaleString('pt-PT', {
-                    style: 'currency',
-                    currency: 'EUR'
-                })}</p>
-                <p class="widget-detalhe">Receita bruta total (Bilhetes Normal e VIP).</p>
-            </div>
-            <div class="widget">
-                <h3>Inscrições Totais</h3>
-                <p class="widget-numero">${dados.inscricoesTotais}</p>
-                <p class="widget-detalhe">Total de participantes em todos os eventos.</p>
-            </div>
-            <div class="widget">
-                <h3>Inscritos (Eventos Ativos)</h3>
-                <p class="widget-numero">${dados.eventosAtivos}</p>
-                <p class="widget-detalhe">Inscritos em eventos no período de vendas.</p>
-            </div>
-            <div class="widget">
-                <h3>Notificações</h3>
-                <p class="widget-numero">${dados.notificacoes}</p>
-                <p class="widget-detalhe">Alertas e pendências não lidas.</p>
-            </div>
-            <div class="widget widget-cta">
-                <h3>Pronto para o próximo evento?</h3>
-                <p class="widget-detalhe">Comece a configurar a sua próxima conferência ou workshop.</p>
-                <a href="criar_evento.html" class="btn btn-primario"><i class="fas fa-plus-circle"></i> Criar Novo Evento</a>
-            </div>
-        `;
-
-    } else if (perfil === 'participante') {
-
-        if (tituloHeaderEl) tituloHeaderEl.textContent = `Bem-vindo ${nomeBase}!`;
-        if (subtituloHeaderEl) subtituloHeaderEl.textContent = 'Participe nos melhores eventos, workshops e conferências do IPCA!';
-
-        menuHTML = `
-            <a href="dashboard.html" class="menu-item active"><i class="fas fa-home"></i><span>Menu Inicial</span></a>
-
-            <!-- CORRETO: página da APP -->
-            <a href="explorar_eventos.html" class="menu-item"><i class="fas fa-search"></i><span>Explorar Eventos</span></a>
-
-            <a href="minhas_inscricoes.html" class="menu-item"><i class="fas fa-ticket-alt"></i><span>As Minhas Inscrições</span></a>
-            <a href="eventos_favoritos.html" class="menu-item"><i class="fas fa-star"></i><span>Eventos Favoritos</span></a>
-            <a href="dados_pessoais.html" class="menu-item"><i class="fas fa-user-cog"></i><span>Gestão de Perfil</span></a>
-        `;
-
-        conteudoHTML = `
-            <div class="widget">
-                <h3>Próximo Evento</h3>
-                <p class="widget-titulo-destaque">${dados.proximoEvento.nome}</p>
-                <p class="widget-detalhe"><i class="fas fa-calendar-alt"></i> Data: ${dados.proximoEvento.data}</p>
-                <p class="widget-detalhe"><i class="fas fa-map-marker-alt"></i> Local: ${dados.proximoEvento.local}</p>
-                <p class="widget-detalhe"><i class="fas fa-microphone"></i> Orador: ${dados.proximoEvento.orador}</p>
-            </div>
-            <div class="widget">
-                <h3>Os Meus Bilhetes</h3>
-                <p class="widget-numero">${dados.bilhetes.total}</p>
-                <p class="widget-detalhe">Total (VIP: ${dados.bilhetes.vip} | Normal: ${dados.bilhetes.normal})</p>
-                <p class="widget-numero widget-dinheiro">${dados.bilhetes.gastoTotal.toLocaleString('pt-PT', {
-                    style: 'currency',
-                    currency: 'EUR'
-                })}</p>
-                <p class="widget-detalhe">Gasto total</p>
-            </div>
-            <div class="widget">
-                <h3>Notificações</h3>
-                <p class="widget-numero">${dados.notificacoes}</p>
-                <p class="widget-detalhe">Alertas e lembretes não lidos.</p>
-            </div>
-            <div class="widget widget-cta">
-                <h3>Descubra a sua próxima experiência</h3>
-                <p class="widget-detalhe">Encontre conferências, workshops e seminários na sua área.</p>
-
-                <!-- CORRETO: página da APP -->
+              <div class="widget-actions">
+                <a href="minhas_inscricoes.html?evento=${encodeURIComponent(prox.uid_evento || "")}"
+                   class="btn btn-primario">
+                  <i class="fas fa-ticket-alt"></i> Abrir bilhete
+                </a>
+              </div>
+            `
+            : `
+              <p class="widget-detalhe" style="margin-top:6px;">Ainda não tens inscrições.</p>
+              <p class="widget-detalhe">Explora eventos e garante o teu lugar.</p>
+              <div class="widget-actions">
                 <a href="explorar_eventos.html" class="btn btn-primario"><i class="fas fa-search"></i> Explorar Eventos</a>
-            </div>
-        `;
-    }
-
-    // Injetar HTML
-    if (menuContainer) menuContainer.innerHTML = menuHTML;
-    if (conteudoContainer) conteudoContainer.innerHTML = conteudoHTML;
-
-    // Info do utilizador no rodapé da sidebar
-    if (nomeUtilizadorEl) nomeUtilizadorEl.textContent = nomeBase;
-    if (perfilUtilizadorEl) perfilUtilizadorEl.textContent = perfil.charAt(0).toUpperCase() + perfil.slice(1);
-
-    // Toggle sidebar (mantém localStorage)
-    const toggleBtn = document.getElementById('toggle-sidebar');
-    const container = document.getElementById('dashboard-container');
-
-    if (toggleBtn && container) {
-        const isRecolhida = localStorage.getItem('sidebarRecolhida') === 'true';
-        if (isRecolhida) {
-            container.classList.add('sidebar-recolhida');
-            toggleBtn.textContent = '→';
-        } else {
-            toggleBtn.textContent = '←';
+              </div>
+            `
         }
+      </div>
 
-        toggleBtn.addEventListener('click', () => {
-            container.classList.toggle('sidebar-recolhida');
-            const novoEstado = container.classList.contains('sidebar-recolhida');
-            localStorage.setItem('sidebarRecolhida', novoEstado);
-            toggleBtn.textContent = novoEstado ? '→' : '←';
-        });
+      <div class="widget">
+        <div class="widget-top">
+          <h3>Os Meus Bilhetes</h3>
+          <i class="fas fa-ticket-alt"></i>
+        </div>
+
+        <p class="widget-numero">${dados.bilhetes.total}</p>
+        <p class="widget-detalhe">VIP: <b>${dados.bilhetes.vip}</b> · Normal: <b>${dados.bilhetes.normal}</b></p>
+
+        <div class="linha-separador"></div>
+
+        <p class="widget-numero widget-dinheiro">${euro(dados.bilhetes.gastoTotal)}</p>
+        <p class="widget-detalhe">Gasto total em bilhetes</p>
+
+        <div class="widget-actions">
+          <a href="minhas_inscricoes.html" class="btn btn-primario"><i class="fas fa-receipt"></i> Ver bilhetes</a>
+        </div>
+      </div>
+
+      <div class="widget">
+        <div class="widget-top">
+          <h3>Notificações</h3>
+          <i class="fas fa-bell"></i>
+        </div>
+        <p class="widget-numero">${dados.notificacoes}</p>
+        <p class="widget-detalhe">Alertas e lembretes não lidos.</p>
+      </div>
+
+      <div class="widget widget-cta">
+        <h3>Descubra a sua próxima experiência</h3>
+        <p class="widget-detalhe">Encontre conferências, workshops e seminários na sua área.</p>
+        <a href="explorar_eventos.html" class="btn btn-primario"><i class="fas fa-search"></i> Explorar Eventos</a>
+      </div>
+    `;
+  }
+
+  if (menuContainer) menuContainer.innerHTML = menuHTML;
+  if (conteudoContainer) conteudoContainer.innerHTML = conteudoHTML;
+
+  if (nomeUtilizadorEl) nomeUtilizadorEl.textContent = nomeBase;
+  if (perfilUtilizadorEl) perfilUtilizadorEl.textContent = capitalizar(perfil);
+
+  // Toggle sidebar (mantém comportamento)
+  const tBtn = document.getElementById('toggle-sidebar');
+  const cont = document.getElementById('dashboard-container');
+
+  if (tBtn && cont) {
+    const isRecolhida = localStorage.getItem('sidebarRecolhida') === 'true';
+    if (isRecolhida) {
+      cont.classList.add('sidebar-recolhida');
+      tBtn.textContent = '→';
+    } else {
+      tBtn.textContent = '←';
     }
+
+    tBtn.onclick = () => {
+      cont.classList.toggle('sidebar-recolhida');
+      const novoEstado = cont.classList.contains('sidebar-recolhida');
+      localStorage.setItem('sidebarRecolhida', novoEstado);
+      tBtn.textContent = novoEstado ? '→' : '←';
+    };
+  }
 }
 
-
-// =========================================================
-// SCRIPT PRINCIPAL DO DASHBOARD (FIREBASE)
-// =========================================================
+/* ===============================
+   MAIN
+================================ */
 document.addEventListener('DOMContentLoaded', () => {
+  const btnLogout = document.getElementById('btn-logout');
 
-    const btnLogout = document.getElementById('btn-logout');
-
-    auth.onAuthStateChanged(async (user) => {
-        try {
-            if (!user) {
-                window.location.href = "./login.html";
-                return;
-            }
-
-            const uid = user.uid;
-            const doc = await db.collection("utilizadores").doc(uid).get();
-
-            if (!doc.exists) {
-                console.error("Perfil não encontrado no Firestore.");
-                await auth.signOut();
-                window.location.href = "./login.html";
-                return;
-            }
-
-            const perfil = doc.data().perfil;
-            const emailCompleto = user.email;
-
-            carregarConteudoDashboard(perfil, emailCompleto);
-
-        } catch (error) {
-            console.error("Erro ao buscar perfil:", error);
-        }
-    });
-
-    if (btnLogout) {
-        btnLogout.addEventListener('click', async (e) => {
-            e.preventDefault();
-
-            try {
-                await auth.signOut();
-                localStorage.removeItem('sidebarRecolhida');
-                window.location.href = './login.html';
-            } catch (error) {
-                console.error("Erro ao fazer logout Firebase:", error);
-            }
-        });
+  auth.onAuthStateChanged(async (user) => {
+    if (!user) {
+      window.location.href = "login.html";
+      return;
     }
+
+    try {
+      const uid = user.uid;
+
+      const doc = await db.collection("utilizadores").doc(uid).get();
+      if (!doc.exists) {
+        console.error("Perfil não encontrado no Firestore.");
+        await auth.signOut();
+        window.location.href = "./login.html";
+        return;
+      }
+
+      const perfil = doc.data().perfil;
+      await carregarConteudoDashboard(perfil, user.email, uid);
+
+    } catch (error) {
+      console.error("Erro ao carregar dashboard:", error);
+    }
+  });
+
+  if (btnLogout) {
+    btnLogout.addEventListener('click', async (e) => {
+      e.preventDefault();
+      try {
+        await auth.signOut();
+        localStorage.removeItem('sidebarRecolhida');
+        window.location.href = './login.html';
+      } catch (error) {
+        console.error("Erro ao fazer logout:", error);
+      }
+    });
+  }
 });

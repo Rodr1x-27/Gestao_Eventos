@@ -319,4 +319,173 @@ html, body {
 .dashboard-container.sidebar-recolhida .menu-item {
     justify-content: center;
 }
+/* =========================
+   MELHORIAS VISUAIS (DASHBOARD)
+========================= */
+.widget {
+  border-radius: 14px;
+}
+
+.widget-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.widget-top i {
+  color: rgba(0,0,0,.35);
+  font-size: 18px;
+}
+
+.linha-separador {
+  height: 1px;
+  background: rgba(0,0,0,.10);
+  margin: 14px 0;
+}
+
+.widget-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.widget-actions .btn {
+  width: 100%;
+  text-align: center;
+  border-radius: 10px;
+}
+/* =========================
+   DASHBOARD PREMIUM (layout + alinhamentos)
+========================= */
+
+/* Grid mais limpo e espaçado */
+.widgets-container {
+  gap: 18px;
+}
+
+/* Cartões premium */
+.widget {
+  border-radius: 16px;
+  padding: 18px;
+  box-shadow: 0 10px 28px rgba(0,0,0,.08);
+  border: 1px solid rgba(0,0,0,.06);
+
+  /* ✅ isto faz os botões ficarem sempre alinhados no fundo */
+  display: flex;
+  flex-direction: column;
+  min-height: 270px; /* ajusta se quiseres mais alto */
+}
+
+/* Cabeçalho do cartão com ícone alinhado */
+.widget-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.widget-top i {
+  font-size: 18px;
+  opacity: .35;
+}
+
+/* Título destaque mais forte */
+.widget-titulo-destaque {
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1.15;
+  margin: 6px 0 10px;
+}
+
+/* Detalhes mais legíveis */
+.widget-detalhe {
+  font-size: 13px;
+  opacity: .92;
+  margin: 6px 0;
+}
+
+/* números grandes */
+.widget-numero {
+  font-size: 44px;
+  font-weight: 900;
+  margin: 8px 0;
+}
+
+/* dinheiro com destaque */
+.widget-dinheiro {
+  letter-spacing: -0.5px;
+}
+
+/* separador melhor */
+.linha-separador {
+  height: 1px;
+  background: rgba(0,0,0,.12);
+  margin: 14px 0;
+}
+
+/* ✅ zona de botões sempre em baixo e igual nos dois cards */
+.widget-actions {
+  margin-top: auto;          /* empurra para baixo */
+  padding-top: 14px;
+  display: flex;
+  gap: 10px;
+}
+
+/* Botões premium (mesmo tamanho) */
+.widget-actions .btn {
+  width: 100%;
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-weight: 900;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  box-shadow: 0 10px 20px rgba(0,0,0,.12);
+  transform: translateY(0);
+  transition: transform .12s ease, box-shadow .12s ease, filter .12s ease;
+}
+
+.widget-actions .btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 26px rgba(0,0,0,.16);
+  filter: brightness(1.02);
+}
+
+/* CTA card mais "premium" */
+.widget.widget-cta {
+  background: linear-gradient(135deg, rgba(255,255,255,.25), rgba(0,0,0,.03));
+  border: 1px solid rgba(0,0,0,.08);
+}
+
+/* Melhorar a sidebar (opcional mas fica logo premium) */
+.sidebar {
+  border-right: 1px solid rgba(255,255,255,.06);
+}
+
+.menu-item {
+  border-radius: 12px;
+  margin: 6px 10px;
+}
+
+.menu-item.active {
+  box-shadow: 0 10px 22px rgba(0,0,0,.15);
+}
+/* Efeito glass subtle (só nos widgets amarelos) */
+.widget {
+  backdrop-filter: blur(6px);
+}
+
+/* animação suave ao entrar */
+@keyframes popIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.widget {
+  animation: popIn .18s ease both;
+}
 
